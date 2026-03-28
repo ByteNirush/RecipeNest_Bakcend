@@ -1,3 +1,6 @@
 node_modules
 dist
 .env
+POSTMAN_API_REFERENCE.md
+
+
