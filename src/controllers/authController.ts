@@ -1,126 +1,84 @@
 import { Request, Response } from "express";
-import jwt, { SignOptions } from "jsonwebtoken";
-import User from "../models/User";
+import { asyncHandler } from "../middleware/asyncHandler";
+import {
+  getChefUserProfile,
+  getCurrentUserById,
+  loginUser,
+  signUpUser,
+  upsertChefUserProfile,
+} from "../services/authService";
+import { AppError } from "../utils/AppError";
 
-const generateToken = (userId: string): string => {
-  const secret = process.env.JWT_SECRET;
+export const signUp = asyncHandler(async (req: Request, res: Response) => {
+  const { fullName, email, password, role } = req.body;
+  const result = await signUpUser({ fullName, email, password, role });
 
-  if (!secret) {
-    throw new Error("JWT_SECRET is not defined in environment variables");
-  }
+  res.status(201).json({
+    success: true,
+    message: "Account created successfully",
+    data: result,
+  });
+});
 
-  const options: SignOptions = {
-    expiresIn: (process.env.JWT_EXPIRES_IN as SignOptions["expiresIn"]) || "7d",
-  };
+export const login = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  const result = await loginUser({ email, password });
 
-  return jwt.sign({ id: userId }, secret, options);
-};
+  res.status(200).json({
+    success: true,
+    message: "Logged in successfully",
+    data: result,
+  });
+});
 
-export const signUp = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { fullName, email, password, role } = req.body;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      res.status(409).json({
-        success: false,
-        message: "An account with this email already exists",
-      });
-      return;
+export const upsertChefProfile = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.userId) {
+      throw new AppError("Unauthorized", 401);
     }
 
-    // Create new user
-    const user = await User.create({
-      fullName,
-      email,
-      password,
-      role: role || "user",
-    });
-
-    // Generate token
-    const token = generateToken(user._id.toString());
-
-    res.status(201).json({
-      success: true,
-      message: "Account created successfully",
-      data: {
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          role: user.role,
-        },
-      },
-    });
-  } catch (error: any) {
-    console.error("Sign up error:", error);
-    
-    // Handle MongoDB duplicate key error (e.g. race condition)
-    if (error.code === 11000) {
-      res.status(409).json({
-        success: false,
-        message: "An account with this email already exists",
-      });
-      return;
-    }
-
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-export const login = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body;
-
-    // Find user by email (selecting password explicitly since it's hidden by default)
-    const user = await User.findOne({ email }).select("+password");
-
-    if (!user) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-      return;
-    }
-
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
-
-    if (!isPasswordValid) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-      return;
-    }
-
-    // Generate token
-    const token = generateToken(user._id.toString());
+    const result = await upsertChefUserProfile(req.userId, req.body);
 
     res.status(200).json({
       success: true,
-      message: "Logged in successfully",
+      message: "Chef profile updated successfully",
       data: {
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          role: user.role,
-        },
+        user: result,
       },
     });
-  } catch (error: any) {
-    console.error("Login error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
+  }
+);
+
+export const getChefProfile = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.userId) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const result = await getChefUserProfile(req.userId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: result,
+      },
     });
   }
-};
+);
+
+export const getCurrentUser = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.userId) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const user = await getCurrentUserById(req.userId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+      },
+    });
+  }
+);
