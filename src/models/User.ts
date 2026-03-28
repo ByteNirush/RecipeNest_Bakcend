@@ -6,6 +6,14 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: "user" | "chef";
+  chefProfile?: {
+    phoneNumber: string;
+    location: string;
+    yearsOfExperience: number;
+    cuisineSpecialties: string[];
+    professionalBio: string;
+    socialMediaLinks: string[];
+  };
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -35,6 +43,33 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ["user", "chef"],
       default: "user",
+    },
+    chefProfile: {
+      phoneNumber: {
+        type: String,
+        trim: true,
+      },
+      location: {
+        type: String,
+        trim: true,
+      },
+      yearsOfExperience: {
+        type: Number,
+        min: 0,
+        max: 60,
+      },
+      cuisineSpecialties: {
+        type: [String],
+        default: [],
+      },
+      professionalBio: {
+        type: String,
+        trim: true,
+      },
+      socialMediaLinks: {
+        type: [String],
+        default: [],
+      },
     },
   },
   { timestamps: true }
