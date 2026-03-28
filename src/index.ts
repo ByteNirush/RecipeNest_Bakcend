@@ -3,7 +3,9 @@ import dotenv from "dotenv";
 import express from "express";
 import mongoose from "mongoose";
 import connectDB from "./config/db";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/authRoutes";
+import recipeRoutes from "./routes/recipeRoutes";
 
 dotenv.config();
 
@@ -36,6 +38,10 @@ app.get("/health", (_req, res) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/recipes", recipeRoutes);
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // Start server
 const startServer = async (): Promise<void> => {
@@ -46,4 +52,7 @@ const startServer = async (): Promise<void> => {
   });
 };
 
-startServer();
+startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});
